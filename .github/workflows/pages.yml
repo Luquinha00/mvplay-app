@@ -1,0 +1,39 @@
+name: Publicar app MV Play
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Montar o app
+        env:
+          ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFtYXB4aGx2ZnZibnNjYW9pcnZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwODI1MTgsImV4cCI6MjEwODY1ODUxOH0.fN2EFXoJy5PQAOZNR0mvTHaP-WN66z3gMgyG-p9CNCA
+        run: |
+          mkdir -p _site/assets
+          curl -sSf -X POST -H "Authorization: Bearer $ANON" -H "apikey: $ANON" https://amapxhlvfvbnscaoirvy.supabase.co/functions/v1/copiar-mvplay -o f.json
+          for k in $(jq -r 'keys[]' f.json); do
+            case "$k" in _redirects|_headers) continue;; esac
+            jq -r --arg k "$k" '.[$k]' f.json | base64 -d > "_site/$k"
+          done
+          cp _site/index.html _site/404.html
+          echo "mvplay.mundovirtualfranchising.com.br" > _site/CNAME
+          touch _site/.nojekyll
+          ls -la _site _site/assets
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4
